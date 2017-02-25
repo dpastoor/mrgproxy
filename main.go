@@ -44,7 +44,9 @@ func HandleProxy(target string, prefix string) func(http.ResponseWriter, *http.R
 }
 
 func main() {
-
+	// not that this must be /<versiontag>/
+	// given /<versiontag> the relative rstudio requests to /rstudio go to the original
+	// domain and therefore fail to be managed properly
 	Config := map[string]string{
 		"/latest/":  "127.0.0.1:8787",
 		"/v0.7.10/": "127.0.0.1:8788",
