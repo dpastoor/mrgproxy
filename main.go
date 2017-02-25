@@ -22,6 +22,9 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strings"
+
+	"github.com/pressly/chi"
+	"github.com/pressly/chi/middleware"
 )
 
 //HandleProxy handles the rpoxy
@@ -52,13 +55,25 @@ func main() {
 		"/v0.7.10/": "127.0.0.1:8788",
 	}
 
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("future landing page"))
+	})
+
 	for Path, Target := range Config {
 		// avoid add comments as route
-		http.HandleFunc(Path, HandleProxy(Target, Path))
-		log.Printf("%s > %s", Path, Target)
+		// http.HandleFunc(Path, HandleProxy(Target, Path))
+		// log.Printf("%s > %s", Path, Target)
+		r.HandleFunc(Path, func(Path string, Target string) func(http.ResponseWriter, *http.Request) {
+			return (func(w http.ResponseWriter, req *http.Request) {
+				w.Write([]byte(fmt.Sprintf("path: %s, target: %s", Path, Target)))
+			})
+		}(Path, Target))
 	}
 
 	Address := fmt.Sprintf("%s:%s", "", "8080")
 	log.Print("start listening on " + Address)
-	http.ListenAndServe(Address, nil)
+	http.ListenAndServe(":8080", r)
 }
