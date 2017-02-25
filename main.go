@@ -21,21 +21,16 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 )
 
-func NewReverseProxy(target string) *httputil.ReverseProxy {
-	return httputil.NewSingleHostReverseProxy(&url.URL{
-		Scheme: "http",
-		Host:   target,
-	})
-}
-
-func Handle(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
+func HandleProxy(target string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// basic cors, might not be needed
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "X-Requested-With")
+		director := func(req *http.Request) {
+			req = r
+			req.URL.Scheme = "http"
+			req.URL.Host = target
+		}
+		p := &httputil.ReverseProxy{Director: director}
 		p.ServeHTTP(w, r)
 	}
 }
@@ -43,16 +38,13 @@ func Handle(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 func main() {
 
 	Config := map[string]string{
-		"/":    "127.0.0.1:8787",
-		"#/m2": "127.0.0.1:8788",
+		"/": "127.0.0.1:8787",
 	}
 
 	for Path, Target := range Config {
 		// avoid add comments as route
-		if Path != "#" {
-			http.HandleFunc(Path, Handle(NewReverseProxy(Target)))
-			log.Printf("%s > %s", Path, Target)
-		}
+		http.HandleFunc(Path, HandleProxy(Target))
+		log.Printf("%s > %s", Path, Target)
 	}
 
 	Address := fmt.Sprintf("%s:%s", "", "8080")
