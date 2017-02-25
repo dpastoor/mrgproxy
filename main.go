@@ -27,23 +27,16 @@ import (
 	"github.com/pressly/chi/middleware"
 )
 
-//HandleProxy handles the rpoxy
-func HandleProxy(target string, prefix string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("URI:", r.RequestURI)
-		director := func(req *http.Request) {
-			req = r
-			req.Host = target // for cors
-			req.URL.Host = target
-			req.URL.Scheme = "http"
-			fmt.Println("original URI:", r.RequestURI)
-			req.URL.Path = "/" + strings.TrimPrefix(req.URL.Path, prefix)
-			fmt.Println("request now on", req.URL.Path)
-		}
-		p := &httputil.ReverseProxy{Director: director}
-		fmt.Println("r path:", r.URL.Path)
-		p.ServeHTTP(w, r)
+// CreateProxyHandler creates a new reverse proxy instance while rewriting to strip the leading prefix
+func CreateProxyHandler(target string, prefix string) http.Handler {
+	director := func(req *http.Request) {
+		req.Host = target // for cors
+		req.URL.Host = target
+		req.URL.Scheme = "http"
+		req.URL.Path = "/" + strings.TrimPrefix(req.URL.Path, prefix)
 	}
+	p := &httputil.ReverseProxy{Director: director}
+	return p
 }
 
 func main() {
@@ -63,14 +56,7 @@ func main() {
 	})
 
 	for Path, Target := range Config {
-		// avoid add comments as route
-		// http.HandleFunc(Path, HandleProxy(Target, Path))
-		// log.Printf("%s > %s", Path, Target)
-		r.HandleFunc(Path, func(Path string, Target string) func(http.ResponseWriter, *http.Request) {
-			return (func(w http.ResponseWriter, req *http.Request) {
-				w.Write([]byte(fmt.Sprintf("path: %s, target: %s", Path, Target)))
-			})
-		}(Path, Target))
+		r.Mount(Path, CreateProxyHandler(Target, Path))
 	}
 
 	Address := fmt.Sprintf("%s:%s", "", "8080")
