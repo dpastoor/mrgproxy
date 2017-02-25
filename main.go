@@ -21,16 +21,24 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 )
 
-func HandleProxy(target string) func(http.ResponseWriter, *http.Request) {
+//HandleProxy handles the rpoxy
+func HandleProxy(target string, prefix string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("URI:", r.RequestURI)
 		director := func(req *http.Request) {
 			req = r
-			req.URL.Scheme = "http"
+			req.Host = target // for cors
 			req.URL.Host = target
+			req.URL.Scheme = "http"
+			fmt.Println("original URI:", r.RequestURI)
+			req.URL.Path = "/" + strings.TrimPrefix(req.URL.Path, prefix)
+			fmt.Println("request now on", req.URL.Path)
 		}
 		p := &httputil.ReverseProxy{Director: director}
+		fmt.Println("r path:", r.URL.Path)
 		p.ServeHTTP(w, r)
 	}
 }
@@ -38,12 +46,13 @@ func HandleProxy(target string) func(http.ResponseWriter, *http.Request) {
 func main() {
 
 	Config := map[string]string{
-		"/": "127.0.0.1:8787",
+		"/latest/":  "127.0.0.1:8787",
+		"/v0.7.10/": "127.0.0.1:8788",
 	}
 
 	for Path, Target := range Config {
 		// avoid add comments as route
-		http.HandleFunc(Path, HandleProxy(Target))
+		http.HandleFunc(Path, HandleProxy(Target, Path))
 		log.Printf("%s > %s", Path, Target)
 	}
 
