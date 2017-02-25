@@ -1,0 +1,13 @@
+localhost:8080/m1/ {
+    proxy / localhost:8787 {
+    websocket 
+    }
+}
+
+localhost:8080/m2/ {
+    proxy / localhost:8788 {
+    websocket 
+    }
+}
+
+
