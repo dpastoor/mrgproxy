@@ -24,11 +24,11 @@ import (
 	"strings"
 
 	"github.com/pressly/chi"
-	"github.com/pressly/chi/middleware"
 )
 
 // CreateProxyHandler creates a new reverse proxy instance while rewriting to strip the leading prefix
 func CreateProxyHandler(target string, prefix string) http.Handler {
+	fmt.Println("got here")
 	director := func(req *http.Request) {
 		req.Host = target // for cors
 		req.URL.Host = target
@@ -49,15 +49,23 @@ func main() {
 	}
 
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	// r.Use(middleware.Logger)
+	// r.Use(middleware.Recoverer)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("future landing page"))
 	})
 
 	for Path, Target := range Config {
+		// Mount expects a http.Handler, namely something that satisfies the interface with method ServeHTTP
+		// given the reverseProxy can be called such that p.ServeHTTP(w, r)
 		r.Mount(Path, CreateProxyHandler(Target, Path))
 	}
+
+	r.Get("/:newRoute", func(w http.ResponseWriter, req *http.Request) {
+		path := "/" + chi.URLParam(req, "newRoute") + "/"
+		fmt.Println("about to mount to path: ", path)
+		r.Mount(path, CreateProxyHandler("127.0.0.1:8787", path))
+	})
 
 	Address := fmt.Sprintf("%s:%s", "", "8080")
 	log.Print("start listening on " + Address)
